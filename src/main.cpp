@@ -26,8 +26,6 @@ using std::placeholders::_1;
 
 // refer to https://github.com/ros2/demos/blob/humble/lifecycle/src/lifecycle_talker.cpp
 
-
-
 class rhspNode : public rclcpp_lifecycle::LifecycleNode
 {
 public:
@@ -47,7 +45,7 @@ public:
         m0v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m0/speed", 10);
         m1v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m1/speed", 10);
         m2v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m2/speed", 10);
-        m3v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m2/speed", 10);
+        m3v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m3/speed", 10);
         serial_port = this->get_parameter("serial_port").as_string();
 
         if (!serial)
@@ -175,11 +173,17 @@ private:
         double vx = msg->linear.x;
         double vy = msg->linear.y;
         double wz = msg->angular.z;
+
+        RCLCPP_INFO(get_logger(), "Vx: %f, Vy: %f, Wz: %f", vx, vy, wz);
         
         double wheel_front_right = -((vx + vy) + (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
         double wheel_rear_right = -((vx - vy) + (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
         double wheel_front_left = ((vx - vy) - (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
         double wheel_rear_left = ((vx + vy) - (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFR: %f", wheel_front_right * TICK_PER_RADIANS);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRR: %f", wheel_rear_right * TICK_PER_RADIANS);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFl: %f", wheel_front_left * TICK_PER_RADIANS);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRLS: %f", wheel_rear_left * TICK_PER_RADIANS);
 
         rhsp_setMotorTargetVelocity(hub, 0, wheel_front_right * TICK_PER_RADIANS, &ack);
         rhsp_setMotorTargetVelocity(hub, 1, wheel_rear_right * TICK_PER_RADIANS, &ack);
@@ -205,7 +209,7 @@ private:
                     a.motor3velocity_cps
                 ));
                 if(a.attentionRequired){
-                    RCLCPP_WARN(get_logger(), "status ATTENTION REQUIRED! motor flags: %d", a.motorStatus);
+                    //RCLCPP_WARN(get_logger(), "status ATTENTION REQUIRED! motor flags: %d", a.motorStatus);
                 }
             }else{
                 RCLCPP_WARN(get_logger(), "bulk read error. returned: %d", ack);
