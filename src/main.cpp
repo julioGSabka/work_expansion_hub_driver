@@ -33,6 +33,10 @@ public:
         rclcpp_lifecycle::LifecycleNode(node_name, rclcpp::NodeOptions().use_intra_process_comms(intra_process_comms))
     {
         this->declare_parameter("serial_port", "/dev/ttyUSB0");
+        this->declare_parameter("kp", Kp);
+        this->declare_parameter("ki", Ki);
+        this->declare_parameter("kd", Kd);
+        this->declare_parameter("kf", Kf);
     }
     rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn
     on_configure(const rclcpp_lifecycle::State &)
@@ -47,6 +51,11 @@ public:
         m2v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m2/speed", 10);
         m3v_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m3/speed", 10);
         serial_port = this->get_parameter("serial_port").as_string();
+
+        m0vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m0/speed_alvo", 10);
+        m1vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m1/speed_alvo", 10);
+        m2vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m2/speed_alvo", 10);
+        m3vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m3/speed_alvo", 10);
 
         if (!serial)
         {
@@ -132,10 +141,10 @@ public:
         RCLCPP_INFO(get_logger(), "set motor modes");
         ClosedLoopControlParameters param;
         param.type = PIDF_TAG;
-        param.pidf.p = Kp;
-        param.pidf.i = Ki;
-        param.pidf.d = Kd;
-        param.pidf.f = Kf;
+        param.pidf.p = this->get_parameter("kp").as_double();
+        param.pidf.i = this->get_parameter("ki").as_double();
+        param.pidf.d = this->get_parameter("kd").as_double();
+        param.pidf.f = this->get_parameter("kf").as_double();
 
         for(int mot =0; mot<4; mot++){
             rhsp_setMotorChannelMode(hub, mot, MOTOR_MODE_REGULATED_VELOCITY, false, &ack);
@@ -180,15 +189,21 @@ private:
         double wheel_rear_right = -((vx - vy) + (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
         double wheel_front_left = ((vx - vy) - (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
         double wheel_rear_left = ((vx + vy) - (WHEEL_SEPARATION_WIDTH + WHEEL_SEPARATION_LENGTH)*wz)/WHEEL_RADIUS;
-        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFR: %f", wheel_front_right * TICK_PER_RADIANS);
-        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRR: %f", wheel_rear_right * TICK_PER_RADIANS);
-        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFl: %f", wheel_front_left * TICK_PER_RADIANS);
-        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRLS: %f", wheel_rear_left * TICK_PER_RADIANS);
+        
+        target_m0 = wheel_front_right * TICK_PER_RADIANS;
+        target_m1 = wheel_rear_right * TICK_PER_RADIANS;
+        target_m2 = wheel_front_left * TICK_PER_RADIANS;
+        target_m3 = wheel_rear_left * TICK_PER_RADIANS;
 
-        rhsp_setMotorTargetVelocity(hub, 0, wheel_front_right * TICK_PER_RADIANS, &ack);
-        rhsp_setMotorTargetVelocity(hub, 1, wheel_rear_right * TICK_PER_RADIANS, &ack);
-        rhsp_setMotorTargetVelocity(hub, 2, wheel_front_left * TICK_PER_RADIANS, &ack);
-        rhsp_setMotorTargetVelocity(hub, 3, wheel_rear_left * TICK_PER_RADIANS, &ack);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFR: %f", target_m0);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRR: %f", target_m1);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaFl: %f", target_m2);
+        RCLCPP_INFO(get_logger(), "Velocidade EsperadaRLS: %f", target_m3);
+
+        rhsp_setMotorTargetVelocity(hub, 0, target_m0, &ack);
+        rhsp_setMotorTargetVelocity(hub, 1, target_m1, &ack);
+        rhsp_setMotorTargetVelocity(hub, 2, target_m2, &ack);
+        rhsp_setMotorTargetVelocity(hub, 3, target_m3, &ack);
     }
 
     void sendUpdate(){
@@ -211,6 +226,12 @@ private:
                 if(a.attentionRequired){
                     //RCLCPP_WARN(get_logger(), "status ATTENTION REQUIRED! motor flags: %d", a.motorStatus);
                 }
+
+                m0vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m0));
+                m1vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m1));
+                m2vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m2));
+                m3vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m3));
+
             }else{
                 RCLCPP_WARN(get_logger(), "bulk read error. returned: %d", ack);
             }
@@ -228,6 +249,13 @@ private:
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m1v_publisher_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m2v_publisher_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m3v_publisher_;
+
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m0vAlvo_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m1vAlvo_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m2vAlvo_publisher_;
+    rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m3vAlvo_publisher_;
+
+    double target_m0 = 0.0, target_m1 = 0.0, target_m2 = 0.0, target_m3 = 0.0;
 };
 
 int main(int argc, char *argv[])
