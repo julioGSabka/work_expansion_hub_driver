@@ -20,6 +20,7 @@
 #include "std_msgs/msg/float32.hpp"
 #include "geometry_msgs/msg/twist.hpp"
 #include "std_msgs/msg/int16.hpp"
+#include "std_msgs/msg/int32_multi_array.hpp"
 
 using namespace std::chrono_literals;
 using std::placeholders::_1;
@@ -56,6 +57,8 @@ public:
         m1vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m1/speed_alvo", 10);
         m2vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m2/speed_alvo", 10);
         m3vAlvo_publisher_ = this->create_publisher<std_msgs::msg::Int16>("m3/speed_alvo", 10);
+
+        encoder_publisher_ = this->create_publisher<std_msgs::msg::Int32MultiArray>("encoder", 10);
 
         if (!serial)
         {
@@ -232,6 +235,17 @@ private:
                 m2vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m2));
                 m3vAlvo_publisher_->publish(std_msgs::msg::Int16().set__data((int16_t)target_m3));
 
+                std_msgs::msg::Int32MultiArray enc_msg;
+                enc_msg.data.reserve(4); // Otimização de memória: evita realocações
+                
+                // Substitua 'motor0position_ptc' pelo nome correto da variável na sua struct RhspBulkInputData
+                enc_msg.data.push_back(a.motor0position_enc); 
+                enc_msg.data.push_back(a.motor1position_enc);
+                enc_msg.data.push_back(a.motor2position_enc);
+                enc_msg.data.push_back(a.motor3position_enc);
+                
+                encoder_publisher_->publish(enc_msg);
+
             }else{
                 RCLCPP_WARN(get_logger(), "bulk read error. returned: %d", ack);
             }
@@ -254,6 +268,8 @@ private:
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m1vAlvo_publisher_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m2vAlvo_publisher_;
     rclcpp::Publisher<std_msgs::msg::Int16>::SharedPtr m3vAlvo_publisher_;
+
+    rclcpp::Publisher<std_msgs::msg::Int32MultiArray>::SharedPtr encoder_publisher_;
 
     double target_m0 = 0.0, target_m1 = 0.0, target_m2 = 0.0, target_m3 = 0.0;
 };

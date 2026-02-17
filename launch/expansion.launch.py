@@ -1,12 +1,24 @@
+import os
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import LifecycleNode
 from launch_ros.events.lifecycle import ChangeState
 from launch.events import matches_action
-from launch.actions import EmitEvent
+from launch.actions import EmitEvent, DeclareLaunchArgument
 from lifecycle_msgs.msg import Transition
+from launch.conditions import IfCondition
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 def generate_launch_description():
+
+    use_enc_odom_arg = DeclareLaunchArgument(
+        'use_enc_odom',
+        default_value='true',
+        description='Define se o node de odometria por encoder deve ser iniciado'
+    )
+
+    expansion_hub_pkg = get_package_share_directory('work_expansion_hub_driver')
 
     expansion_hub = LifecycleNode(
             package="work_expansion_hub_driver",
@@ -29,10 +41,22 @@ def generate_launch_description():
         transition_id=Transition.TRANSITION_ACTIVATE,
         )
     )
-    
+
+    config_path = os.path.join(expansion_hub_pkg, 'config.hpp')
+    odometry_node = Node(
+        package='work_expansion_hub_driver',
+        executable='encoder_odometry.py',
+        name='encoder_odometry',
+        output='screen',
+        parameters=[{
+            'config_path': config_path
+        }],
+        condition=IfCondition(LaunchConfiguration('use_odom'))
+    )
 
     return LaunchDescription([
         expansion_hub,
         expansion_hub_configure,
-        expansion_hub_activate
+        expansion_hub_activate,
+        odometry_node
     ])

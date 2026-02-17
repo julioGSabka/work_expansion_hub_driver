@@ -84,5 +84,15 @@ install(
   DESTINATION share/${PROJECT_NAME}/launch
 )
 
+install(PROGRAMS
+  src/encoder_odometry.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(FILES
+  src/config.hpp
+  DESTINATION share/${PROJECT_NAME}
+)
+
 
 ament_package()
