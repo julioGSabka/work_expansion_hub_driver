@@ -51,10 +51,12 @@ def generate_launch_description():
         parameters=[{
             'config_path': config_path
         }],
-        condition=IfCondition(LaunchConfiguration('use_odom'))
+        condition=IfCondition(LaunchConfiguration('use_enc_odom'))
     )
 
     return LaunchDescription([
+        use_enc_odom_arg,
+
         expansion_hub,
         expansion_hub_configure,
         expansion_hub_activate,

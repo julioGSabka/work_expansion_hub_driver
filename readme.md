@@ -54,7 +54,7 @@ ros2 run rqt_plot rqt_plot /m0/speed/data /m0/speed_alvo/data
 
 Como o expansion_hub_node utiliza o ciclo de vida do ROS 2 (Lifecycle Nodes), é necessário desativar o nó antes de aplicar novos ganhos para garantir que a mudança seja processada corretamente.
 
-Fluxo de Trabalho:
+*Fluxo de Trabalho*:
 1. Desativar o nó de controle.
 2. Alterar o parâmetro desejado (kP, kI, kD ou kF).
 3. Reativar o nó para testar o novo valor.
