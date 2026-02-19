@@ -6,6 +6,7 @@ import numpy as np
 import os
 from rclpy.node import Node
 from std_msgs.msg import Int32MultiArray
+from nav_msgs.msg import Odometry
 from tf2_msgs.msg import TFMessage
 from tf_transformations import euler_from_quaternion, quaternion_from_euler
 from tf2_ros import TransformBroadcaster
@@ -34,6 +35,7 @@ class EncoderOdometry(Node):
         self.encoder_sub = self.create_subscription(
             Int32MultiArray, 'encoder', self.encoder_callback, 10)
         
+        self.odom_pub = self.create_publisher(Odometry, 'odom', 10)
         self.tf_broadcaster = TransformBroadcaster(self)
              
         # Estado inicial
@@ -107,14 +109,17 @@ class EncoderOdometry(Node):
         self.y += np.sin(avg_heading) * dx_b + np.cos(avg_heading) * dy_b
         self.heading += dtheta
 
+        quat_list = quaternion_from_euler(0, 0, self.heading)
+
         # Publicação da TF
-        self.broadcast_odometry(now)
+        self.broadcast_odometry(now, quat_list)
+        self.publish_odom(now, quat_list, dx_b, dy_b, dtheta, delta_time)
 
         # Atualização de estado para o próximo ciclo
         self.last_clock = now
         self.last_encoders = list(msg.data)
     
-    def broadcast_odometry(self, timestamp):
+    def broadcast_odometry(self, timestamp, quat_list):
         tf = TransformStamped()
         tf.header.stamp = timestamp.to_msg()
         tf.header.frame_id = "odom"
@@ -124,13 +129,33 @@ class EncoderOdometry(Node):
         tf.transform.translation.y = self.y
         tf.transform.translation.z = 0.0
         
-        quat = quaternion_from_euler(0, 0, self.heading)
-        tf.transform.rotation.x = quat[0]
-        tf.transform.rotation.y = quat[1]
-        tf.transform.rotation.z = quat[2]
-        tf.transform.rotation.w = quat[3]
+        tf.transform.rotation.x = quat_list[0]
+        tf.transform.rotation.y = quat_list[1]
+        tf.transform.rotation.z = quat_list[2]
+        tf.transform.rotation.w = quat_list[3]
 
         self.tf_broadcaster.sendTransform(tf)
+
+    def publish_odom(self, timestamp, quat_list, dx, dy, dth, dt):
+        msg = Odometry()
+        msg.header.stamp = timestamp.to_msg()
+        msg.header.frame_id = "odom"
+        msg.child_frame_id = "base_footprint"
+
+        # Pose
+        msg.pose.pose.position.x = self.x
+        msg.pose.pose.position.y = self.y
+        msg.pose.pose.orientation.x = quat_list[0]
+        msg.pose.pose.orientation.y = quat_list[1]
+        msg.pose.pose.orientation.z = quat_list[2]
+        msg.pose.pose.orientation.w = quat_list[3]
+
+        # Twist (Velocidades locais)
+        msg.twist.twist.linear.x = dx / dt
+        msg.twist.twist.linear.y = dy / dt
+        msg.twist.twist.angular.z = dth / dt
+
+        self.odom_pub.publish(msg)
 
     def parse_hpp_for_defines(self, hpp_file_path):
         """Extrai constantes de um arquivo C++ header."""
