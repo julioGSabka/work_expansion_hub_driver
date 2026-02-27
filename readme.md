@@ -8,7 +8,7 @@ all the code inside the librhsp folder belongs to REV and have their respective 
 
 ## Usage
 
-Todas as funcionalidades do pacote podem ser iniciadas através do arquivo launch principal:
+All package functionalities can be started via the main launch file:
 
 ```bash
 ros2 launch work_expansion_hub_driver expansion.launch.py
@@ -16,55 +16,55 @@ ros2 launch work_expansion_hub_driver expansion.launch.py
 
 ## Odometry
 
-O driver inclui um nó de Odometria Mecanum `encoder_odometry.py` que processa os dados dos encoders para estimar a posição (x,y) e a orientação (θ) do robô.
+The driver includes a Mecanum Odometry node `encoder_odometry.py` that processes encoder data to estimate the robot's position (x,y) and orientation (θ).
 
-A odometria pode ser ativada ou desativada diretamente pelo arquivo de launch principal:
+Odometry can be enabled or disabled directly through the main launch file:
 
-| Argumento | Default Value|
+| Argument | Default Value |
 | :--- | :--- |
 | `use_enc_odom` | `true` |
 
 ## Config File
 
-Para garantir a consistência entre o driver C++ e o nó de odometria em Python, ambos compartilham o arquivo `src/config.hpp`. Este arquivo centraliza as constantes físicas do robô.
+To ensure consistency between the C++ driver and the Python odometry node, both share the `src/config.hpp` file. This file centralizes the physical constants of the robot.
 
-| Parametro | Descrição |
+| Parameter | Description |
 | :--- | :--- |
-| `WHEEL_RADIUS` | Raio da roda (em metros). |
-| `TICK_PER_ROT` | Quantidade de pulsos do encoder por rotação completa da roda. |
-| `WHEEL_SEPARATION_WIDTH` | Distância entre as rodas direitas e esquerdas. |
-| `WHEEL_SEPARATION_LENGTH` | Distância entre as rodas traseiras e dianteiras. |
-| `Kp, Ki, Kd, Kf` | Ganhos do controle PIDF dos motores. |
+| `WHEEL_RADIUS` | Wheel radius (in meters). |
+| `TICK_PER_ROT` | Number of encoder pulses per full wheel rotation. |
+| `WHEEL_SEPARATION_WIDTH` | Distance between left and right wheels. |
+| `WHEEL_SEPARATION_LENGTH` | Distance between front and rear wheels. |
+| `Kp, Ki, Kd, Kf` | Gains for the motor PIDF control. |
 	
-### Inversão de Motores:
+### Motor Inversion:
 
-Dependendo da montagem física e da orientação dos motores no chassi, os encoders podem contar de forma invertida (diminuir quando o robô vai para frente).
+Depending on the physical assembly and motor orientation on the chassis, encoders may count in reverse (e.g., decreasing when the robot moves forward).
 
-*Atenção:* Caso a odometria apresente comportamento invertido (ex: robô gira mas o log diz que ele vai para frente), deve-se ajustar os sinais dos multiplicadores no `encoder_callback` dentro do arquivo `encoder_odometry.py` para normalizar o sentido de rotação.
+***Warning:*** If the odometry displays inverted behavior (e.g., the robot rotates but the log indicates forward movement), you must adjust the multiplier signs in the `encoder_callback` within the `encoder_odometry.py` file to normalize the rotation direction.
 
-## Calibração de PIDF
+## PIDF Calibration
 
-Para calibração de PIDF recomenda-se o uso das seguintes ferramentas:
+The following tools are recommended for PIDF calibration:
 
-Para visualizar o comportamento do motor em tempo real, utilize o ```rqt_plot```. Isso permite comparar a velocidade alvo com a velocidade atual e observar oscilações ou atrasos. Lembre-se de verificar a escala do gráfico para não esconder dados.
+Use `rqt_plot` to visualize motor behavior in real-time. This allows you to compare the target speed with the current speed and observe oscillations or lag. Remember to check the graph scale to ensure data is visible.
 
 ```bash
 ros2 run rqt_plot rqt_plot /m0/speed/data /m0/speed_alvo/data
 ```
 
-Como o expansion_hub_node utiliza o ciclo de vida do ROS 2 (Lifecycle Nodes), é necessário desativar o nó antes de aplicar novos ganhos para garantir que a mudança seja processada corretamente.
+Since the expansion_hub_node uses the ROS 2 Lifecycle system, you must deactivate the node before applying new gains to ensure the changes are processed correctly.
 
-*Fluxo de Trabalho*:
-1. Desativar o nó de controle.
-2. Alterar o parâmetro desejado (kP, kI, kD ou kF).
-3. Reativar o nó para testar o novo valor.
+*Workflow*:
+1. Deactivate the control node.
+2. Change the desired parameter (kP,kI,kD,or kF).
+3. Reactivate the node to test the new value.
 
 ```bash
 ros2 lifecycle set /expansion_hub_node deactivate
 ros2 param set /expansion_hub_node kf 20.0
 ros2 lifecycle set /expansion_hub_node activate
 ```
-Para testar a resposta do sistema aos comandos, utilize o pacote de teleoperação via teclado para enviar diferentes velocidades ao robô:
+To test the system's response to commands, use the keyboard teleop package to send different velocities to the robot:
 
 ```bash
 ros2 run teleop_twist_keyboard teleop_twist_keyboard
